@@ -1,0 +1,561 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Efootball League Manager — Beast</title>
+<style>
+  :root{
+    --bg:#07101a; --panel:#0f2430; --accent:#ffb703; --muted:#9fb3c8; --card:#0b1620;
+    --danger:#d9534f; --good:#28a745;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Arial;background:linear-gradient(180deg,#03101a 0%, #071827 100%);color:#e6f0f5}
+  .wrap{max-width:1100px;margin:24px auto;padding:18px}
+  header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+  header h1{margin:0;font-size:20px;letter-spacing:0.3px}
+  .top-controls{display:flex;gap:8px;align-items:center}
+  button, .btn{background:var(--accent);color:#07101a;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:600}
+  .btn.secondary{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted)}
+  .layout{display:grid;grid-template-columns:320px 1fr 320px;gap:16px}
+  @media(max-width:980px){.layout{grid-template-columns:1fr;}.right-col,.left-col{order:2}}
+  .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,0.03)}
+  .left-col .card, .right-col .card{min-height:140px}
+  label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+  input[type="text"], input[type="number"], select {width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit;margin-bottom:8px}
+  .small{font-size:13px;color:var(--muted)}
+  ul{list-style:none;padding:0;margin:0}
+  .team-item{display:flex;justify-content:space-between;align-items:center;padding:8px;border-radius:8px;margin-bottom:8px;background:rgba(255,255,255,0.01)}
+  .fixture{display:flex;align-items:center;gap:8px;padding:8px;border-radius:8px;margin-bottom:8px;background:rgba(255,255,255,0.01);flex-wrap:wrap}
+  .fixture .teams{flex:1;font-weight:700}
+  .fixture input[type="number"]{width:60px}
+  .muted{color:var(--muted);font-size:13px}
+  .chat-box{height:320px;overflow:auto;padding:8px;border-radius:8px;background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(0,0,0,0.02));}
+  .chat-msg{margin-bottom:8px}
+  .chat-msg .who{font-weight:700;font-size:13px}
+  .row{display:flex;gap:8px;align-items:center}
+  .table{width:100%;border-collapse:collapse;margin-top:8px}
+  .table th, .table td{padding:8px;border-bottom:1px solid rgba(255,255,255,0.03);text-align:left}
+  .danger{background:var(--danger);color:white}
+  .good{background:var(--good);color:white}
+  .hint{font-size:13px;color:var(--muted);margin-top:6px}
+  .center{display:flex;align-items:center;justify-content:center}
+  .small-btn{padding:6px 8px;border-radius:6px;font-size:13px}
+  .top-banner{background:rgba(0,0,0,0.25);padding:10px;border-radius:10px;margin-bottom:12px;color:var(--muted)}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>Efootball League Manager — Beast</h1>
+        <div class="small muted">Admin password (default shown for convenience): <strong>admin123</strong></div>
+      </div>
+      <div class="top-controls">
+        <div id="adminStatus" class="small muted">Not signed in as admin</div>
+        <button id="adminSignBtn" class="btn">Admin Login</button>
+        <button id="homeBtn" class="btn secondary">Home</button>
+      </div>
+    </header>
+
+    <div class="top-banner card">
+      <div class="small muted">Create leagues, set passcodes, add teams, generate fixtures, update scores (admin-only) and chat with members per league. Data is stored locally in your browser.</div>
+    </div>
+
+    <div class="layout">
+      <!-- LEFT: Create / Join -->
+      <div class="left-col">
+        <div class="card">
+          <h3>Create League (Admin)</h3>
+          <div id="createSection">
+            <label>League Name</label>
+            <input id="newLeagueName" type="text" placeholder="e.g. Campus Cup" />
+            <label>Choose a passcode (what members will use)</label>
+            <input id="newLeaguePass" type="text" placeholder="e.g. EFB2025" />
+            <div class="row">
+              <button id="createLeagueBtn" class="btn">Create League</button>
+              <button id="deleteLeagueBtn" class="btn small-btn danger" title="Delete selected league">Delete League</button>
+            </div>
+            <div class="hint">Only admins can create or delete leagues.</div>
+          </div>
+        </div>
+
+        <div style="height:12px"></div>
+
+        <div class="card">
+          <h3>Join League (Members)</h3>
+          <label>Enter League Passcode</label>
+          <input id="joinPass" type="text" placeholder="Enter passcode" />
+          <button id="joinBtn" class="btn">Join</button>
+          <div class="hint">Members join with the league passcode and choose a username when prompted.</div>
+        </div>
+
+        <div style="height:12px"></div>
+
+        <div class="card">
+          <h3>Leagues</h3>
+          <div id="leagueList" class="small muted">No leagues yet</div>
+        </div>
+      </div>
+
+      <!-- CENTER: League Dashboard -->
+      <div class="center-col">
+        <div class="card" id="leaguePanel" style="display:none">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <h2 id="leagueTitle" style="margin:0">League</h2>
+              <div class="muted" id="leaguePassDisplay">Passcode: </div>
+            </div>
+            <div class="small muted" id="youAre">Role: guest</div>
+          </div>
+
+          <hr style="border:none;height:8px">
+
+          <div id="adminControls" style="display:none">
+            <h3>Teams</h3>
+            <div class="row">
+              <input id="teamInput" type="text" placeholder="Team name (e.g. United FC)" />
+              <button id="addTeamBtn" class="btn">Add Team</button>
+              <button id="genFixturesBtn" class="btn secondary">Generate Fixtures</button>
+            </div>
+            <div id="teamListArea" style="margin-top:12px"></div>
+            <hr style="border:none;height:8px">
+          </div>
+
+          <div>
+            <h3>Fixtures</h3>
+            <div id="fixturesArea" style="max-height:340px;overflow:auto"></div>
+            <div class="hint">Only admin can edit and save scores. Members can view and chat.</div>
+          </div>
+
+          <hr style="border:none;height:8px">
+
+          <div style="display:flex;gap:12px;flex-wrap:wrap">
+            <div style="flex:1;min-width:260px">
+              <h3>League Table</h3>
+              <table class="table card" id="standingsTable">
+                <thead><tr><th>Team</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GF</th><th>GA</th><th>GD</th><th>Pts</th></tr></thead>
+                <tbody id="standingsBody"></tbody>
+              </table>
+            </div>
+
+            <div style="width:320px;">
+              <h3>Chat</h3>
+              <div class="chat-box" id="chatBox"></div>
+              <div style="margin-top:8px" class="row">
+                <input id="chatInput" type="text" placeholder="Write a message..." />
+                <button id="chatSend" class="btn small-btn">Send</button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <div id="noLeague" class="card center">No league opened. Create or join one to begin.</div>
+      </div>
+
+      <!-- RIGHT: Info / Actions -->
+      <div class="right-col">
+        <div class="card">
+          <h3>Current Actions</h3>
+          <div class="muted" id="currentActions">No actions yet</div>
+        </div>
+
+        <div style="height:12px"></div>
+
+        <div class="card">
+          <h3>Admin Tools</h3>
+          <div class="small muted">
+            <p><strong>Admin password:</strong> <code>admin123</code> — enter it when you click Admin Login.</p>
+            <p>Admin can delete leagues. Delete carefully.</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+<script>
+/* -------------------------
+  Data model in localStorage:
+  leagues = {
+    PASSCODE1: {
+      name: "League name",
+      pass: "PASSCODE1",
+      teams: [{name, played, w,d,l,gf,ga,pts}],
+      fixtures: [{home,away,homeScore,awayScore,condition}],
+      chat: [{user,msg,time}],
+      createdAt: timestamp
+    },
+    ...
+  }
+----------------------------*/
+
+const LS_KEY = 'efl_leagues_v1';
+let leagues = JSON.parse(localStorage.getItem(LS_KEY) || '{}');
+
+let adminSignedIn = false;
+let currentLeagueKey = null;
+let currentUser = {role: 'guest', name: null}; // role: guest | member | admin
+
+/* DOM elements */
+const adminSignBtn = document.getElementById('adminSignBtn');
+const adminStatus = document.getElementById('adminStatus');
+const createLeagueBtn = document.getElementById('createLeagueBtn');
+const deleteLeagueBtn = document.getElementById('deleteLeagueBtn');
+const newLeagueName = document.getElementById('newLeagueName');
+const newLeaguePass = document.getElementById('newLeaguePass');
+const joinBtn = document.getElementById('joinBtn');
+const joinPass = document.getElementById('joinPass');
+const leagueList = document.getElementById('leagueList');
+
+const leaguePanel = document.getElementById('leaguePanel');
+const noLeague = document.getElementById('noLeague');
+const leagueTitle = document.getElementById('leagueTitle');
+const leaguePassDisplay = document.getElementById('leaguePassDisplay');
+const youAre = document.getElementById('youAre');
+const adminControls = document.getElementById('adminControls');
+const teamInput = document.getElementById('teamInput');
+const addTeamBtn = document.getElementById('addTeamBtn');
+const genFixturesBtn = document.getElementById('genFixturesBtn');
+const teamListArea = document.getElementById('teamListArea');
+const fixturesArea = document.getElementById('fixturesArea');
+const standingsBody = document.getElementById('standingsBody');
+const chatBox = document.getElementById('chatBox');
+const chatInput = document.getElementById('chatInput');
+const chatSend = document.getElementById('chatSend');
+const currentActions = document.getElementById('currentActions');
+
+function saveAll(){
+  localStorage.setItem(LS_KEY, JSON.stringify(leagues));
+}
+
+function refreshLeagueList(){
+  const keys = Object.keys(leagues).sort((a,b)=>leagues[b].createdAt - leagues[a].createdAt);
+  if(keys.length===0){ leagueList.innerHTML = '<div class="muted">No leagues yet</div>'; return; }
+  const ul = document.createElement('ul');
+  keys.forEach(k=>{
+    const li = document.createElement('li');
+    li.className='team-item';
+    li.innerHTML = `<div><strong>${leagues[k].name}</strong><div class="muted">Code: ${k}</div></div>
+      <div style="display:flex;gap:6px">
+        <button class="btn small-btn" onclick="openLeague('${k}')">Open</button>
+        <button class="btn small-btn secondary" onclick="copyCode('${k}')">Copy</button>
+      </div>`;
+    ul.appendChild(li);
+  });
+  leagueList.innerHTML = '';
+  leagueList.appendChild(ul);
+}
+
+function copyCode(k){
+  navigator.clipboard?.writeText(k).then(()=>alert('Passcode copied to clipboard'));
+}
+
+function adminToggle(){
+  if(!adminSignedIn){
+    const pw = prompt('Enter admin password (hint: admin123):');
+    if(pw === null) return;
+    if(pw === 'admin123'){
+      adminSignedIn = true;
+      adminStatus.textContent = 'Signed in as admin';
+      adminSignBtn.textContent = 'Sign out (admin)';
+      currentUser.role = 'admin';
+      youAre.textContent = 'Role: admin';
+      currentActions.textContent = 'Admin mode enabled';
+    } else {
+      alert('Wrong password');
+      return;
+    }
+  } else {
+    // sign out admin
+    adminSignedIn = false;
+    adminStatus.textContent = 'Not signed in as admin';
+    adminSignBtn.textContent = 'Admin Login';
+    currentUser.role = 'guest';
+    youAre.textContent = 'Role: guest';
+    currentActions.textContent = 'Signed out';
+  }
+  updateUIForRole();
+}
+
+function createLeague(){
+  if(!adminSignedIn){ alert('You must sign in as admin to create a league'); return; }
+  const name = newLeagueName.value.trim();
+  const pass = newLeaguePass.value.trim().toUpperCase();
+  if(!name || !pass) return alert('Enter league name and passcode');
+  if(leagues[pass]) return alert('That passcode already exists. Choose another.');
+  leagues[pass] = { name, pass, teams: [], fixtures: [], chat: [], createdAt: Date.now() };
+  saveAll();
+  refreshLeagueList();
+  newLeagueName.value=''; newLeaguePass.value='';
+  openLeague(pass);
+  currentActions.textContent = `League "${name}" created`;
+}
+
+function deleteLeague(){
+  if(!adminSignedIn){ alert('Admin only'); return; }
+  if(!currentLeagueKey) return alert('Open a league first');
+  if(!confirm('Delete this league permanently?')) return;
+  delete leagues[currentLeagueKey];
+  saveAll();
+  refreshLeagueList();
+  closeLeague();
+  currentActions.textContent = 'League deleted';
+}
+
+function joinLeague(){
+  const pass = joinPass.value.trim().toUpperCase();
+  if(!pass) return alert('Enter passcode');
+  if(!leagues[pass]) return alert('No league with that passcode');
+  // prompt username
+  let username = prompt('Enter a username to join this league (no special characters):');
+  if(!username) return;
+  username = username.trim().substring(0,20);
+  currentUser = {role:'member', name: username};
+  openLeague(pass);
+  currentActions.textContent = `${username} joined as member`;
+}
+
+function openLeague(key){
+  if(!leagues[key]) return alert('League not found');
+  currentLeagueKey = key;
+  leaguePanel.style.display = 'block';
+  noLeague.style.display = 'none';
+  leagueTitle.textContent = leagues[key].name;
+  leaguePassDisplay.textContent = 'Passcode: ' + key;
+  youAre.textContent = 'Role: ' + (adminSignedIn ? 'admin' : (currentUser.role==='member'? 'member':'guest'));
+  updateUIForRole();
+  renderTeams();
+  renderFixtures();
+  renderStandings();
+  renderChat();
+}
+
+function closeLeague(){
+  currentLeagueKey = null;
+  leaguePanel.style.display = 'none';
+  noLeague.style.display = 'block';
+  youAre.textContent = 'Role: guest';
+}
+
+function updateUIForRole(){
+  if(!currentLeagueKey) return;
+  if(adminSignedIn){
+    adminControls.style.display = 'block';
+  } else {
+    adminControls.style.display = 'none';
+  }
+  youAre.textContent = 'Role: ' + (adminSignedIn ? 'admin' : (currentUser.role==='member' ? 'member' : 'guest'));
+  // show/hide delete
+  deleteLeagueBtn.style.display = adminSignedIn ? 'inline-block' : 'none';
+}
+
+function addTeam(){
+  if(!adminSignedIn) return alert('Admin only');
+  const v = teamInput.value.trim();
+  if(!v) return;
+  const teams = leagues[currentLeagueKey].teams;
+  if(teams.some(t=>t.name.toLowerCase()===v.toLowerCase())) return alert('Team already exists');
+  teams.push({name:v, played:0,w:0,d:0,l:0,gf:0,ga:0,pts:0});
+  teamInput.value = '';
+  saveAll();
+  renderTeams();
+  currentActions.textContent = `Team "${v}" added`;
+}
+
+function renderTeams(){
+  if(!currentLeagueKey) return;
+  const teams = leagues[currentLeagueKey].teams;
+  if(teams.length===0){
+    teamListArea.innerHTML = '<div class="muted">No teams yet</div>';
+    return;
+  }
+  const ul = document.createElement('div');
+  ul.innerHTML = teams.map(t=>`<div class="team-item">${t.name} <button class="btn small-btn secondary" onclick="removeTeam('${t.name.replaceAll("'", "\\'")}')">Remove</button></div>`).join('');
+  teamListArea.innerHTML = '';
+  teamListArea.appendChild(ul);
+}
+
+function removeTeam(name){
+  if(!adminSignedIn) return alert('Admin only');
+  if(!confirm('Remove team? This will clear fixtures.')) return;
+  let teams = leagues[currentLeagueKey].teams;
+  teams = teams.filter(t=>t.name!==name);
+  leagues[currentLeagueKey].teams = teams;
+  leagues[currentLeagueKey].fixtures = [];
+  saveAll();
+  renderTeams();
+  renderFixtures();
+  renderStandings();
+  currentActions.textContent = `Team "${name}" removed`;
+}
+
+function generateFixtures(){
+  if(!adminSignedIn) return alert('Admin only');
+  const teams = leagues[currentLeagueKey].teams.map(t=>t.name);
+  if(teams.length < 2) return alert('Add at least 2 teams');
+  // single round robin: each pair once (home/away as listed)
+  const fixtures = [];
+  for(let i=0;i<teams.length;i++){
+    for(let j=i+1;j<teams.length;j++){
+      fixtures.push({home:teams[i], away:teams[j], homeScore:'', awayScore:'', condition:'none'});
+    }
+  }
+  leagues[currentLeagueKey].fixtures = fixtures;
+  // reset teams stats
+  leagues[currentLeagueKey].teams = teams.map(n=>({name:n,played:0,w:0,d:0,l:0,gf:0,ga:0,pts:0}));
+  saveAll();
+  renderFixtures();
+  renderStandings();
+  currentActions.textContent = 'Fixtures generated';
+}
+
+function renderFixtures(){
+  if(!currentLeagueKey) return;
+  const list = leagues[currentLeagueKey].fixtures || [];
+  if(list.length===0){ fixturesArea.innerHTML = '<div class="muted">No fixtures. Admin can generate fixtures after adding teams.</div>'; return; }
+  fixturesArea.innerHTML = '';
+  list.forEach((f,i)=>{
+    const div = document.createElement('div');
+    div.className = 'fixture';
+    const isAdmin = adminSignedIn;
+    div.innerHTML = `
+      <div class="teams">${f.home} <span class="muted">vs</span> ${f.away}</div>
+      <div>
+        <input type="number" id="hs${i}" value="${f.homeScore}" ${isAdmin? '':'disabled'} min="0" />
+      </div>
+      <div>-</div>
+      <div>
+        <input type="number" id="as${i}" value="${f.awayScore}" ${isAdmin? '':'disabled'} min="0" />
+      </div>
+      <div>
+        <select id="cond${i}" ${isAdmin? '':'disabled'}>
+          <option value="none"${f.condition==='none'?' selected':''}>Condition</option>
+          <option value="excellent"${f.condition==='excellent'?' selected':''}>Excellent</option>
+          <option value="poor"${f.condition==='poor'?' selected':''}>Poor</option>
+          <option value="random"${f.condition==='random'?' selected':''}>Random</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button class="btn small-btn" ${isAdmin? '' : 'disabled'} onclick="saveFixture(${i})">Save</button>
+        <button class="btn small-btn secondary" ${isAdmin? '' : 'disabled'} onclick="randomizeFixture(${i})">Randomize</button>
+      </div>
+    `;
+    fixturesArea.appendChild(div);
+  });
+}
+
+function randomizeFixture(i){
+  if(!adminSignedIn) return alert('Admin only');
+  const hs = Math.floor(Math.random()*5);
+  const as = Math.floor(Math.random()*5);
+  document.getElementById(`hs${i}`).value = hs;
+  document.getElementById(`as${i}`).value = as;
+  document.getElementById(`cond${i}`).value = 'random';
+  saveFixture(i);
+}
+
+function saveFixture(i){
+  if(!adminSignedIn) return alert('Admin only');
+  const hs = parseInt(document.getElementById(`hs${i}`).value || 0);
+  const as = parseInt(document.getElementById(`as${i}`).value || 0);
+  const cond = document.getElementById(`cond${i}`).value;
+  const f = leagues[currentLeagueKey].fixtures[i];
+  f.homeScore = hs;
+  f.awayScore = as;
+  f.condition = cond;
+  // recompute standings from scratch
+  const teams = leagues[currentLeagueKey].teams.map(t=>({name:t.name,played:0,w:0,d:0,l:0,gf:0,ga:0,pts:0}));
+  leagues[currentLeagueKey].fixtures.forEach(match=>{
+    if(match.homeScore === '' || match.awayScore === '') return;
+    const home = teams.find(t=>t.name===match.home);
+    const away = teams.find(t=>t.name===match.away);
+    home.played++; away.played++;
+    home.gf += Number(match.homeScore); home.ga += Number(match.awayScore);
+    away.gf += Number(match.awayScore); away.ga += Number(match.homeScore);
+    if(Number(match.homeScore) > Number(match.awayScore)){ home.w++; away.l++; home.pts += 3; }
+    else if(Number(match.homeScore) < Number(match.awayScore)){ away.w++; home.l++; away.pts += 3; }
+    else { home.d++; away.d++; home.pts += 1; away.pts += 1; }
+  });
+  // assign back
+  leagues[currentLeagueKey].teams = teams;
+  saveAll();
+  renderFixtures();
+  renderStandings();
+  currentActions.textContent = `Fixture ${i+1} saved`;
+}
+
+function renderStandings(){
+  if(!currentLeagueKey) return;
+  const teams = [...(leagues[currentLeagueKey].teams || [])];
+  teams.sort((a,b)=> b.pts - a.pts || b.gf - a.gf || a.ga - b.ga);
+  standingsBody.innerHTML = '';
+  if(teams.length===0){ standingsBody.innerHTML = '<tr><td class="muted">No teams</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>'; return; }
+  teams.forEach(t=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${t.name}</td><td>${t.played}</td><td>${t.w}</td><td>${t.d}</td><td>${t.l}</td><td>${t.gf}</td><td>${t.ga}</td><td>${t.gf - t.ga}</td><td>${t.pts}</td>`;
+    standingsBody.appendChild(tr);
+  });
+}
+
+/* Chat */
+function renderChat(){
+  if(!currentLeagueKey) return;
+  const msgs = leagues[currentLeagueKey].chat || [];
+  chatBox.innerHTML = '';
+  msgs.forEach(m=>{
+    const div = document.createElement('div');
+    div.className = 'chat-msg';
+    div.innerHTML = `<div class="who">${m.user} <span class="muted" style="font-weight:400">• ${new Date(m.time).toLocaleString()}</span></div><div>${escapeHtml(m.msg)}</div>`;
+    chatBox.appendChild(div);
+  });
+  chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+function sendChat(){
+  const txt = chatInput.value.trim();
+  if(!txt) return;
+  if(!currentLeagueKey) return alert('Join a league first');
+  let uname = currentUser.name;
+  if(!uname){
+    // if not member, ask
+    uname = prompt('Enter a username to chat as:');
+    if(!uname) return;
+    currentUser = {role:'member', name: uname};
+    youAre.textContent = 'Role: member';
+  }
+  const msg = {user:uname, msg:txt, time: Date.now()};
+  leagues[currentLeagueKey].chat.push(msg);
+  saveAll();
+  chatInput.value = '';
+  renderChat();
+  currentActions.textContent = 'Message sent';
+}
+
+/* utilities */
+function escapeHtml(s){ return s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
+
+/* initial render */
+refreshLeagueList();
+
+/* event wiring */
+adminSignBtn.addEventListener('click', adminToggle);
+createLeagueBtn.addEventListener('click', createLeague);
+deleteLeagueBtn.addEventListener('click', deleteLeague);
+joinBtn.addEventListener('click', ()=>{ joinLeague(); refreshLeagueList(); });
+addTeamBtn.addEventListener('click', addTeam);
+genFixturesBtn.addEventListener('click', generateFixtures);
+chatSend.addEventListener('click', sendChat);
+chatInput.addEventListener('keypress', (e)=>{ if(e.key==='Enter') sendChat(); });
+
+/* expose for buttons inside generated HTML */
+window.openLeague = (k)=>{ openLeague(k); };
+window.saveFixture = (i)=>{ saveFixture(i); };
+window.randomizeFixture = (i)=>{ randomizeFixture(i); };
+window.removeTeam = (n)=>{ removeTeam(n); };
+window.copyCode = (k)=>{ copyCode(k); };
+
+</script>
+</body>
+</html>
